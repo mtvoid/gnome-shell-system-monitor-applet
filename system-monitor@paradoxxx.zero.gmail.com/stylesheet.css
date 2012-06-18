@@ -21,6 +21,12 @@
     padding: 0 5px 0 2px;
 }
 
+.sm-temp-label {
+    color: #aaa;
+    font-size: 11px;
+    padding: 0 5px 0 2px;
+}
+
 .sm-status-value {
     min-width: 25px;
     text-align: right;
@@ -51,6 +57,7 @@
     background-color: rgba(10, 10, 10, 0.7);
     border-radius: 5px;
     padding: 3px;
+    border: 1px solid #a5a5a5;
 }
 
 .sm-tooltip-item {
@@ -61,4 +68,3 @@
     padding: 0px 2px;
     icon-size: 1.14em;
 }
-

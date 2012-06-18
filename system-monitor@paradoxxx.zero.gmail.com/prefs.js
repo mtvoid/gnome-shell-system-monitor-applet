@@ -6,6 +6,7 @@ const Clutter = imports.gi.Clutter;
 const Lang = imports.lang;
 
 
+const SETTINGS_SCHEMA = 'system-monitor';
 
 const Gettext = imports.gettext.domain('system-monitor-applet');
 const _ = Gettext.gettext;
@@ -14,14 +15,12 @@ const N_ = function(e) { return e; };
 let extension = imports.misc.extensionUtils.getCurrentExtension();
 let convenience = extension.imports.convenience;
 
-let Schema, SettingFrame, App;
-let Select, IntSelect, ColorSelect;
-const SETTINGS_SCHEMA = 'org.gnome.shell.extensions.system-monitor';
-
+let Schema;
 
 function init() {
     convenience.initTranslations(extension);
-    Schema = convenience.getSettings(extension, 'system-monitor');
+    Schema = convenience.getSettings(extension, SETTINGS_SCHEMA);
+	
 }
 
 String.prototype.capitalize = function(){
@@ -63,11 +62,9 @@ function check_sensors(){
 };
 
 
-ColorSelect = function(){
-    this._init.apply(this, arguments);
-};
+const ColorSelect = new Lang.Class({
+	Name: 'SystemMonitor.ColorSelect',
 
-ColorSelect.prototype = {
     _init: function(name) {
         this.label = new Gtk.Label({label: name + ":"});
         this.picker = new Gtk.ColorButton();
@@ -84,14 +81,11 @@ ColorSelect.prototype = {
         color.parse('rgba(' + ctemp.join(',') + ')');	
         this.picker.set_rgba(color);
     }
-};
+});
 
+const IntSelect = new Lang.Class({
+	Name: 'SystemMonitor.IntSelect',
 
-IntSelect = function(){
-    this._init.apply(this, arguments);
-};
-    
-IntSelect.prototype = {
     _init: function(name) {
         this.label = new Gtk.Label({label: name + ":"});
         this.spin = new Gtk.SpinButton();
@@ -107,13 +101,11 @@ IntSelect.prototype = {
     set_value: function(value){
         this.spin.set_value(value);
     }
-};
+});
 
-Select = function(){
-    this._init.apply(this, arguments);
-};
-    
-Select.prototype = {
+const Select = new Lang.Class({
+	Name: 'SystemMonitor.Select',
+
     _init: function(name) {
         this.label = new Gtk.Label({label: name + ":"});
         this.selector = new Gtk.ComboBoxText();
@@ -129,16 +121,7 @@ Select.prototype = {
             this.selector.append_text(item);
         }));
     }
-};
-
-function set_boolean(check, schema, name){
-    schema.set_boolean(name, check.get_active());
-}
-
-function set_int(spin, schema, name){
-    Schema.set_int(name, spin.get_value_as_int());
-    return false
-}
+});
 
 function set_enum(combo, schema, name){
     Schema.set_enum(name, combo.get_active());
@@ -152,11 +135,9 @@ function set_string(combo, schema, name, _slist){
     Schema.set_string(name, _slist[combo.get_active()]);
 }
 
-SettingFrame = function(){
-	this._init.apply(this, arguments);
-};
+const SettingFrame = new Lang.Class({
+	Name: 'SystemMonitor.SettingFrame',
 
-SettingFrame.prototype = {
     _init: function(name, schema){
         this.schema = schema;
         this.label = new Gtk.Label({label: name});
@@ -178,41 +159,27 @@ SettingFrame.prototype = {
         let sections = key.split('-')
         if (sections[1] == 'display'){
             let item = new Gtk.CheckButton({label:_('Display')});
-            item.set_active(this.schema.get_boolean(key));
             this.hbox0.add(item);
-            item.connect('toggled', function(check){
-                    set_boolean(check, Schema, key);
-            });
+			Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);
+			
         } else if (sections[1] == 'refresh'){
             let item = new IntSelect(_('Refresh Time'));
-            item.set_args(50, 100000, 100, 1000);
-            item.set_value(this.schema.get_int(key));
+            item.set_args(50, 100000, 1000, 5000);
             this.hbox1.add(item.actor);
-            item.spin.connect('output', function(IntSel){
-                set_int(IntSel, Schema, key);
-            });
+			Schema.bind(key, item.spin, 'value', Gio.SettingsBindFlags.DEFAULT);
         } else if (sections[1] == 'graph' && sections[2] == 'width'){
             let item = new IntSelect(_('Graph Width'));
             item.set_args(1, 1000, 1, 10);
-            item.set_value(this.schema.get_int(key));
             this.hbox1.add(item.actor);
-            item.spin.connect('output', function(IntSel){
-                set_int(IntSel, Schema, key);
-            });
+        	Schema.bind(key, item.spin, 'value', Gio.SettingsBindFlags.DEFAULT);
         } else if (sections[1] == 'show' && sections[2] == 'text'){
             let item = new Gtk.CheckButton({label:_('Show Text')});
-            item.set_active(this.schema.get_boolean(key));
             this.hbox0.add(item);
-            item.connect('toggled', function(check){
-                set_boolean(check, Schema, key);
-            });
+			Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);
         } else if (sections[1] == 'show' && sections[2] == 'menu'){
             let item = new Gtk.CheckButton({label:_('Show In Menu')});
-            item.set_active(this.schema.get_boolean(key));
             this.hbox0.add(item);
-            item.connect('toggled', function(check){
-                set_boolean(check, Schema, key);
-            });
+         	Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);
         } else if (sections[1] == 'style'){
             let item = new Select(_('Display Style'));
             item.add([_('digit'), _('graph'), _('both')]);
@@ -221,13 +188,11 @@ SettingFrame.prototype = {
             item.selector.connect('changed', function(style){
                 set_enum(style, Schema, key);
             });
+			//Schema.bind(key, item.selector, 'active', Gio.SettingsBindFlags.DEFAULT);
         } else if (sections[1] == 'speed'){
             let item = new Gtk.CheckButton({label:_('Show network speed in bits')});
-            item.set_active(this.schema.get_boolean(key));
             this.hbox3.add(item);
-            item.connect('toggled', function(check){
-                set_boolean(check, Schema, key);
-            });
+            Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);
         } else if (sections.length == 3 && sections[2] == 'color'){
             let item = new ColorSelect(_(sections[1].capitalize()));
             item.set_value(this.schema.get_string(key));
@@ -239,7 +204,7 @@ SettingFrame.prototype = {
             let [_slist, _strlist] = check_sensors();
             let item = new Select(_('Sensor'));
             if (_slist.length == 0){
-                item.add(_('Please install lm-sensors'));
+                item.add([_('Please install lm-sensors')]);
             } else if (_slist.length == 1){
                 this.schema.set_string(key, _slist[0]);
             }
@@ -255,27 +220,28 @@ SettingFrame.prototype = {
             });
         } else if (sections[1] == 'time'){
             let item = new Gtk.CheckButton({label:_('Show Time Remaining')});
-            item.set_active(this.schema.get_boolean(key));
             this.hbox3.add(item);
-            item.connect('toggled', function(check){
-                set_boolean(check, Schema, key);
-            });
+            Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);
         } else if (sections[1] == 'hidesystem'){
             let item = new Gtk.CheckButton({label:_('Hide System Icon')});
-            item.set_active(this.schema.get_boolean(key));
             this.hbox3.add(item);
-            item.connect('toggled', function(check){
-                set_boolean(check, Schema, key);
+            Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);
+        } else if (sections[1] == 'usage' && sections[2] == 'style'){
+            let item = new Select(_('Usage Style'));
+            item.add([_('pie'), _('bar'), _('none')]);
+            item.set_value(this.schema.get_enum(key));
+            this.hbox3.pack_end(item.actor,false,false,20);
+            
+            item.selector.connect('changed', function(style){
+                set_enum(style, Schema, key);
             });
         }
     }
-};
+});
 
-App = function(){
-    this._init.apply(this, arguments);
-};
+const App = new Lang.Class({
+	Name: 'SystemMonitor.App',
 
-App.prototype = {
     _init: function(){
 
         let setting_items = ['cpu', 'memory', 'swap', 'net', 'disk', 'thermal', 'freq', 'battery'];
@@ -299,28 +265,25 @@ App.prototype = {
         keys.forEach(Lang.bind(this, function(key){
             if (key == 'icon-display'){
                 let item = new Gtk.CheckButton({label: _('Display Icon')});
-                item.set_active(Schema.get_boolean(key))
+                //item.set_active(Schema.get_boolean(key))
                 this.items.push(item)
                 this.hbox1.add(item)
-                item.connect('toggled', function(check){
+                /*item.connect('toggled', function(check){
                     set_boolean(check, Schema, key);
-                });
+                });*/
+				Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);
             } else if (key == 'center-display'){
                 let item = new Gtk.CheckButton({label: _('Display in the Middle')})
-                item.set_active(Schema.get_boolean(key))
+                //item.set_active(Schema.get_boolean(key))
                 this.items.push(item)
                 this.hbox1.add(item)
-                item.connect('toggled', function(check){
-                    set_boolean(check, Schema, key);
-                });
+ 				Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);		
             } else if (key == 'move-clock'){
                 let item = new Gtk.CheckButton({label:_('Move the clock')})
-                item.set_active(Schema.get_boolean(key))
+                //item.set_active(Schema.get_boolean(key))
                 this.items.push(item)
                 this.hbox1.add(item)
-                item.connect('toggled', function(check){
-                    set_boolean(check, Schema, key);
-                });
+                Schema.bind(key, item, 'active', Gio.SettingsBindFlags.DEFAULT);
             } else if (key == 'background'){
                 let item = new ColorSelect(_('Background Color'))
                 item.set_value(Schema.get_string(key))
@@ -344,7 +307,7 @@ App.prototype = {
         }));
     this.main_vbox.show_all();
     }
-};
+});
 
 function buildPrefsWidget(){
     let widget = new App();
